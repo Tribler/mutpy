@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import ast
+import glob
 import inspect
 from difflib import unified_diff
 from pathlib import Path
+from typing import Generator
 
 from mutpy import controller, operators, utils, codegen
 from mutpy.operators import OverriddenMethodCallingPositionChange
@@ -56,7 +58,7 @@ class GitHubView(AccReportView):
                          f"@{self.current_mutation['mutations'][0]['lineno']} {status}</summary>\n\n"
                          f"```patch\n{diff}\n```\n\n</details>\n\n")
 
-def main(project_dirs: list[str], target_file: str, unit_test_file: str) -> GitHubView:
+def run(project_dirs: list[str], target_file: str, unit_test_file: str) -> GitHubView:
     """
     Run a mutations on the given target files and check if the given unit test files catch them.
 
@@ -82,12 +84,25 @@ def main(project_dirs: list[str], target_file: str, unit_test_file: str) -> GitH
     return viewer
 
 
+def module_name(src_dir: str, target: str, prefix: str) -> str:
+    return prefix + ".".join(Path(target[:-3]).relative_to(src_dir).parts)
+
+
+def run_from_dirs(project_dirs: list[str], src_dir: str, test_dir: str,
+                  prefix: str) -> Generator[GitHubView, None, None]:
+    test_files = glob.glob(f"{test_dir}/**/test_*.py", recursive=True)
+    for test_file in test_files:
+        relpath = (Path(src_dir) / Path(test_file).relative_to(test_dir))
+        target = str(relpath.parent / relpath.name[5:])
+        print("Processing", module_name(src_dir, target, prefix), "<-", module_name(src_dir, test_file, prefix))
+        yield run(project_dirs, module_name(src_dir, target, prefix), module_name(src_dir, test_file, prefix))
+
+
 if __name__ == "__main__":
-    # TODO: Example for two files
     project_directories = ["../../TriblerExperimental/src", "../../TriblerExperimental/pyipv8"]
     with open("report.md", "w") as file_stream:
-        viewer = main(project_directories, "tribler.tribler_config", "tribler.test_unit.test_tribler_config")
-        file_stream.write(viewer.content)
-
-        viewer = main(project_directories, "tribler.core.notifier", "tribler.test_unit.core.test_notifier")
-        file_stream.write(viewer.content)
+        for viewer in run_from_dirs(project_directories,
+                                    "../../TriblerExperimental/src/tribler",
+                                    "../../TriblerExperimental/src/tribler/test_unit",
+                                    "tribler."):
+            file_stream.write(viewer.content)

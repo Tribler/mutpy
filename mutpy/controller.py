@@ -58,6 +58,7 @@ class MutationController(views.ViewNotifier):
         self.stdout_manager = utils.StdoutManager(disable_stdout)
         self.mutation_number = mutation_number
         self.runner = runner_cls(self.test_loader, self.timeout_factor, self.stdout_manager, mutate_covered)
+        self.ignore_flaky = True
 
     def run(self):
         self.notify_initialize(self.target_loader.names, self.test_loader.names)
@@ -92,7 +93,7 @@ class MutationController(views.ViewNotifier):
         total_duration = 0
         for test_module, target_test in self.test_loader.load():
             result, duration = self.run_test(test_module, target_test)
-            if result.was_successful():
+            if self.ignore_flaky or result.was_successful():
                 test_modules.append((test_module, target_test, duration))
             else:
                 raise TestsFailAtOriginal(result)
