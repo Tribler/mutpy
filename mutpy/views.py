@@ -1,7 +1,9 @@
 import ast
 import datetime
+import html
 import inspect
 import os
+import shutil
 import traceback
 from difflib import unified_diff
 
@@ -201,7 +203,7 @@ class AccReportView:
         self.current_mutation = {
             'number': number,
             'mutations': mutations,
-            'module': module,
+            'module': html.escape(str(module)),
         }
 
     def killed(self, time, killer, exception_traceback, tests_run, *args, **kwargs):
@@ -267,12 +269,34 @@ class HTMLReportView(AccReportView):
     def mutation(self, number, mutations, module, mutant):
         super().mutation(number, mutations, module, mutant)
         self.current_mutation['mutant'] = mutant
+        self.current_mutation['module_src'] = ast.parse(inspect.getsource(module))
+
+    def decorate(self, line, color):
+        return f'<span class="{color}text">{line}</span>'
+
+    @staticmethod
+    def _create_diff(mutant_src, original_src):
+        return list(unified_diff(original_src.split('\n'), mutant_src.split('\n'), n=4, lineterm=''))
+
+    def get_diff(self, mutant_src, original_src):
+        diff = self._create_diff(mutant_src, original_src)
+        diff = [line for line in diff if not line.startswith(('---', '+++', '@@'))]
+        diff = [self.decorate(line, 'blue') if line.startswith('- ') else line for line in diff]
+        diff = [self.decorate(line, 'green') if line.startswith('+ ') else line for line in diff]
+        return "\n".join(diff)
+
+    def styled_diff(self, mutant, original):
+        mutant_src = codegen.to_source(mutant)
+        mutant_src = codegen.add_line_numbers(mutant_src)
+        original_src = codegen.to_source(original)
+        original_src = codegen.add_line_numbers(original_src)
+        return self.get_diff(mutant_src, original_src)
 
     def end_mutation(self, *args, **kwargs):
         super().end_mutation(*args, **kwargs)
         template = self.env.get_template('detail.html')
         context = {
-            'mutant_code': codegen.to_source(self.current_mutation['mutant']),
+            'mutant_code': self.styled_diff(self.current_mutation['mutant'], self.current_mutation['module_src']),
         }
         context.update(self.current_mutation)
         report = template.render(context)
@@ -295,3 +319,12 @@ class HTMLReportView(AccReportView):
         file_path = os.path.join(self.dir_name, 'index.html')
         with open(file_path, 'w') as report_file:
             report_file.write(report)
+
+        include_folder = os.path.join(os.path.dirname(__file__), 'templates', 'include')
+        include_files = os.listdir(include_folder)
+        for file_name in include_files:
+            full_file_name = os.path.join(include_folder, file_name)
+            if os.path.isfile(full_file_name):
+                shutil.copy(full_file_name, os.path.join(self.dir_name, file_name))
+                shutil.copy(full_file_name, os.path.join(self.dir_name, 'mutants', file_name))
+
