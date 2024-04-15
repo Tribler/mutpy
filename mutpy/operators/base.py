@@ -68,6 +68,9 @@ class MutationOperator:
 
     def generic_visit(self, node):
         for field, old_value in ast.iter_fields(node):
+            # Don't mutate typing info (undetectable).
+            if field in ["annotation", "returns", "type_comment", "type_ignores", "type_params"]:
+                continue
             if isinstance(old_value, list):
                 generator = self.generic_visit_list(old_value)
             elif isinstance(old_value, ast.AST):
