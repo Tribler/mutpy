@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import ast
 import glob
 import inspect
@@ -98,11 +99,33 @@ def run_from_dirs(project_dirs: list[str], src_dir: str, test_dir: str,
         yield run(project_dirs, module_name(src_dir, target, prefix), module_name(src_dir, test_file, prefix))
 
 
-if __name__ == "__main__":
-    project_directories = ["../../TriblerExperimental/src", "../../TriblerExperimental/pyipv8"]
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--codebase", choices=["ipv8", "tribler", "triblerexp"], required=True)
+    args = parser.parse_args()
+
+    if args.codebase == "ipv8":
+        project_directories = ["../../py-ipv8"]
+        src_dir = "../../py-ipv8/ipv8"
+        test_dir = "../../py-ipv8/ipv8/test"
+        prefix = "ipv8."
+    elif args.codebase == "tribler":
+        project_directories = ["../../tribler/src", "../../tribler/pyipv8"]
+        src_dir = "../../tribler/src/tribler"
+        test_dir = "../../tribler/src/tribler/test_unit"
+        prefix = "tribler."
+    elif args.codebase == "triblerexp":
+        project_directories = ["../../TriblerExperimental/src", "../../TriblerExperimental/pyipv8"]
+        src_dir = "../../TriblerExperimental/src/tribler"
+        test_dir = "../../TriblerExperimental/src/tribler/test_unit"
+        prefix = "tribler."
+    else:
+        raise RuntimeError("How did you get here?")
+
     with open("report.md", "w") as file_stream:
-        for viewer in run_from_dirs(project_directories,
-                                    "../../TriblerExperimental/src/tribler",
-                                    "../../TriblerExperimental/src/tribler/test_unit",
-                                    "tribler."):
+        for viewer in run_from_dirs(project_directories, src_dir, test_dir, prefix):
             file_stream.write(viewer.content)
+
+
+if __name__ == "__main__":
+    main()
