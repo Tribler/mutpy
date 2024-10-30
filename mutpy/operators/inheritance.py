@@ -14,7 +14,7 @@ class AbstractOverriddenElementModification(MutationOperator):
         parent = node.parent
         parent_names = []
         while parent:
-            if not isinstance(parent, ast.Module):
+            if not isinstance(parent, ast.Module) and hasattr(parent, "name"):
                 parent_names.append(parent.name)
             if not isinstance(parent, ast.ClassDef) and not isinstance(parent, ast.Module):
                 raise MutationResign()
