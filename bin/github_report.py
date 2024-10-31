@@ -122,9 +122,9 @@ def main():
     else:
         raise RuntimeError("How did you get here?")
 
-    with open("report.md", "w") as file_stream:
+    with open("report.md", "wb") as file_stream:
         for viewer in run_from_dirs(project_directories, src_dir, test_dir, prefix):
-            file_stream.write(viewer.content)
+            file_stream.write(viewer.content.encode())
 
 
 if __name__ == "__main__":

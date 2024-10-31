@@ -1,3 +1,4 @@
+import time
 import unittest
 
 from mutpy.test_runners.base import CoverageTestResult, BaseTestSuite, BaseTestRunner, MutationTestResult, BaseTest
@@ -73,10 +74,17 @@ class UnittestCoverageResult(CoverageTestResult, unittest.TestResult):
         self.stop_measure_coverage(UnittestTest(test))
 
 
+def patched_setUpClass(cls):
+    cls.__lockup_timestamp__ = time.time()
+
+
 class UnittestTestSuite(BaseTestSuite):
 
     def __init__(self):
         self.suite = unittest.TestSuite()
+
+        from ipv8.test.base import TestBase
+        TestBase.setUpClass = patched_setUpClass
 
     def add_tests(self, test_module, target_test):
         self.suite.addTests(self.load_tests(test_module, target_test))
